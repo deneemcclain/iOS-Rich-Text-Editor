@@ -60,9 +60,10 @@ typedef enum{
 	RichTextEditorFeatureParagraphFirstLineIndentation	= 1 << 13,
 	RichTextEditorFeatureBulletList						= 1 << 14,
 	RichTextEditorTextAttachment						= 1 << 15,
-	RichTextEditorFeatureAll							= 1 << 16,
-    RichTextEditorFeatureUndoRedo						= 1 << 17,
-    RichTextEditorFeatureDismissKeyboard				= 1 << 18
+	RichTextEditorFeatureUndoRedo						= 1 << 16,
+    RichTextEditorFeatureDismissKeyboard				= 1 << 17,
+    RichTextEditorFeatureAll                            = 1 << 18,
+    RichTextEditorFeatureNumberList                     = 1 << 19       // added type for numbered list
 }RichTextEditorFeature;
 
 @protocol RichTextEditorToolbarDelegate <UIScrollViewDelegate>
@@ -72,6 +73,7 @@ typedef enum{
 - (void)richTextEditorToolbarDidSelectUnderline;
 - (void)richTextEditorToolbarDidSelectStrikeThrough;
 - (void)richTextEditorToolbarDidSelectBulletListWithCaller:(id)caller;
+- (void)richTextEditorToolbarDidSelectNumberListWithCaller:(id)caller;      // added function for numbered list
 - (void)richTextEditorToolbarDidSelectTextAttachment:(UIImage *)textAttachment;
 - (void)richTextEditorToolbarDidSelectParagraphFirstLineHeadIndent;
 - (void)richTextEditorToolbarDidSelectParagraphIndentation:(ParagraphIndentation)paragraphIndentation;

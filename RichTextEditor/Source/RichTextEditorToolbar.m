@@ -58,6 +58,7 @@
 @property (nonatomic, strong) RichTextEditorToggleButton *btnParagraphOutdent;
 @property (nonatomic, strong) RichTextEditorToggleButton *btnParagraphFirstLineHeadIndent;
 @property (nonatomic, strong) RichTextEditorToggleButton *btnBulletList;
+@property (nonatomic, strong) RichTextEditorToggleButton *btnNumberList;                    // added button for the Numbered List
 @property (nonatomic, strong) RichTextEditorToggleButton *btnTextAttachment;
 @property (nonatomic, strong) RichTextEditorToggleButton *btnTextUndo;
 @property (nonatomic, strong) RichTextEditorToggleButton *btnTextRedo;
@@ -164,6 +165,11 @@
 - (void)bulletListSelected:(UIButton *)sender
 {
 	[self.delegate richTextEditorToolbarDidSelectBulletListWithCaller:self];
+}
+
+- (void)numberListSelected:(UIButton *)sender           // added button action method for number list
+{
+    [self.delegate richTextEditorToolbarDidSelectNumberListWithCaller:self];
 }
 
 - (void)paragraphIndentSelected:(UIButton *)sender
@@ -447,6 +453,13 @@
 		[self addView:self.btnBulletList afterView:lastAddedView withSpacing:YES];
 		lastAddedView = self.btnBulletList;
 	}
+    
+    // Number List
+    if (features & RichTextEditorFeatureNumberList || features & RichTextEditorFeatureAll)
+    {
+        [self addView:self.btnNumberList afterView:lastAddedView withSpacing:YES];
+        lastAddedView = self.btnNumberList;
+    }
 	
 	// Separator view after color section
 	if (features & RichTextEditorFeatureBulletList || features & RichTextEditorFeatureAll)
@@ -463,6 +476,7 @@
 		lastAddedView = self.btnTextAttachment;
 	}
     
+    // Undo and Redo
 	if ((features & RichTextEditorFeatureUndoRedo || features & RichTextEditorFeatureAll) && SYSTEM_VERSION_GREATER_THAN_OR_EQUAL_TO(@"7.0"))
 	{
 		[self addView:self.btnTextUndo afterView:lastAddedView withSpacing:YES];
@@ -524,6 +538,9 @@
 	
 	self.btnBulletList = [self buttonWithImageNamed:@"bullist.png"
 										 andSelector:@selector(bulletListSelected:)];
+    
+    self.btnNumberList = [self buttonWithImageNamed:@"numlist.png"
+                                        andSelector:@selector(numberListSelected:)];            // added initialization for number list button
 	
 	self.btnParagraphIndent = [self buttonWithImageNamed:@"indent.png"
 											 andSelector:@selector(paragraphIndentSelected:)];

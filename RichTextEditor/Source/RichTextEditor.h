@@ -54,6 +54,7 @@
 @property (nonatomic, weak) IBOutlet id <RichTextEditorDataSource> dataSource;
 @property (nonatomic, assign) CGFloat defaultIndentationSize;
 @property  BOOL userInBulletList;
+@property  BOOL userInNumberList;       // added property for number list.
 
 - (void)setBorderColor:(UIColor*)borderColor;
 - (void)setBorderWidth:(CGFloat)borderWidth;

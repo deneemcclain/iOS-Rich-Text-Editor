@@ -36,6 +36,7 @@
 #define RICHTEXTEDITOR_TOOLBAR_HEIGHT 40
 // removed first tab in lieu of using indents for bulleted lists
 #define BULLET_STRING @"•\t"
+#define NUMBER_STRING [[NSRegularExpression regularExpressionWithPattern: @"\d+\.\t" options:0 error: nil] pattern]
 #define LEVELS_OF_UNDO 10
 
 @interface RichTextEditor() <RichTextEditorToolbarDelegate, RichTextEditorToolbarDataSource>
@@ -98,6 +99,7 @@
 	
 	self.typingAttributesInProgress = NO;
     self.userInBulletList = NO;
+    self.userInNumberList = NO;         // added initialization for number list property
     
     // Instead of hard-coding the default indentation size, which can make bulleted lists look a little
     // odd when increasing/decreasing their indent, use a \t character width instead
@@ -114,6 +116,7 @@
     else [[self undoManager] setLevelsOfUndo:LEVELS_OF_UNDO];
 	
 	// When text changes check to see if we need to add bullet, or delete bullet on backspace/enter
+    // TODO: apply number list if applicable? delete number list if applicable?
 	_textObserver = [[NSNotificationCenter defaultCenter] addObserverForName:UITextViewTextDidChangeNotification
 													  object:self
 													   queue:nil
@@ -149,6 +152,10 @@
 	BOOL currentParagraphHasBullet = ([[[self.attributedText string] substringFromIndex:rangeOfCurrentParagraph.location] hasPrefix:BULLET_STRING]) ? YES: NO;
     if (currentParagraphHasBullet)
         self.userInBulletList = YES;
+    BOOL currentParagraphHasNumber = ([[[self.attributedText string] substringFromIndex:rangeOfCurrentParagraph.location] hasPrefix:NUMBER_STRING]) ? YES: NO;
+    if (currentParagraphHasNumber)
+        self.userInNumberList = YES;
+    
 }
 
 #pragma mark - Override Methods -
