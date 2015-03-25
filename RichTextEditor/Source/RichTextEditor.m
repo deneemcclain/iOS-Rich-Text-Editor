@@ -36,7 +36,7 @@
 #define RICHTEXTEDITOR_TOOLBAR_HEIGHT 40
 // removed first tab in lieu of using indents for bulleted lists
 #define BULLET_STRING @"•\t"
-#define NUMBER_STRING [[NSRegularExpression regularExpressionWithPattern: @"\d+\.\t" options:0 error: nil] pattern]
+#define NUMBER_STRING @"\\d+\\.\t"
 #define LEVELS_OF_UNDO 10
 
 @interface RichTextEditor() <RichTextEditorToolbarDelegate, RichTextEditorToolbarDataSource>
@@ -152,6 +152,7 @@
 	BOOL currentParagraphHasBullet = ([[[self.attributedText string] substringFromIndex:rangeOfCurrentParagraph.location] hasPrefix:BULLET_STRING]) ? YES: NO;
     if (currentParagraphHasBullet)
         self.userInBulletList = YES;
+    // added Boolean and check for user in Numbered List.
     BOOL currentParagraphHasNumber = ([[[self.attributedText string] substringFromIndex:rangeOfCurrentParagraph.location] hasPrefix:NUMBER_STRING]) ? YES: NO;
     if (currentParagraphHasNumber)
         self.userInNumberList = YES;
@@ -531,6 +532,108 @@
         [self setIndentationWithAttributes:dictionary paragraphStyle:paragraphStyle atRange:paragraphRange];
 	}];
     [self updateToolbarState];
+}
+
+- (void)richTextEditorToolbarDidSelectNumberListWithCaller:(id)caller
+{
+    if (self.currSysVersion < 8.0)
+        self.scrollEnabled = NO;
+    if (caller == self.toolBar)
+        self.userInNumberList = !self.userInNumberList;
+    NSRange initialSelectedRange = self.selectedRange;      // saves currently selected text.
+    NSArray *rangeOfParagraphsInSelectedText = [self.attributedText rangeOfParagraphsFromTextRange:self.selectedRange]; // saves paragraphs in the selected text.
+    NSRange rangeOfCurrentParagraph = [self.attributedText firstParagraphRangeFromTextRange:self.selectedRange];
+    BOOL firstParagraphHasNumber = ([[[self.attributedText string] substringFromIndex:rangeOfCurrentParagraph.location] hasPrefix:NUMBER_STRING]) ? YES: NO;
+    
+    NSRange rangeOfPreviousParagraph = [self.attributedText firstParagraphRangeFromTextRange:NSMakeRange(rangeOfCurrentParagraph.location-1, 0)];
+    NSDictionary *prevParaDict = [self dictionaryAtIndex:rangeOfPreviousParagraph.location];
+    NSMutableParagraphStyle *prevParaStyle = [prevParaDict objectForKey:NSParagraphStyleAttributeName];
+    
+    __block NSInteger rangeOffset = 0;
+    
+    [self enumarateThroughParagraphsInRange:self.selectedRange withBlock:^(NSRange paragraphRange){
+        NSRange range = NSMakeRange(paragraphRange.location + rangeOffset, paragraphRange.length);
+        NSMutableAttributedString *currentAttributedString = [self.attributedText mutableCopy];
+        NSDictionary *dictionary = [self dictionaryAtIndex:MAX((int)range.location-1, 0)];
+        NSMutableParagraphStyle *paragraphStyle = [[dictionary objectForKey:NSParagraphStyleAttributeName] mutableCopy];
+        
+        if (!paragraphStyle)
+            paragraphStyle = [[NSMutableParagraphStyle alloc] init];
+        
+        BOOL currentParagraphHasNumber = ([[[currentAttributedString string] substringFromIndex:range.location] hasPrefix:NUMBER_STRING]) ? YES : NO;
+        
+        if (firstParagraphHasNumber != currentParagraphHasNumber)
+            return;
+        if (currentParagraphHasNumber)
+        {
+            // User hit the number button and is in a numbered list so we should get rid of the number
+            range = NSMakeRange(range.location, range.length - NUMBER_STRING.length);
+            
+            [currentAttributedString deleteCharactersInRange:NSMakeRange(range.location, NUMBER_STRING.length)];
+            
+            paragraphStyle.firstLineHeadIndent = 0;
+            paragraphStyle.headIndent = 0;
+            
+            rangeOffset = rangeOffset - NUMBER_STRING.length;
+            self.userInNumberList = NO;
+        }
+        else
+        {
+            // We are adding a bullet
+            range = NSMakeRange(range.location, range.length + NUMBER_STRING.length);
+            
+            NSMutableAttributedString *numberAttributedString = [[NSMutableAttributedString alloc] initWithString:NUMBER_STRING attributes:nil];
+            [numberAttributedString setAttributes:dictionary range:NSMakeRange(0, NUMBER_STRING.length)];
+            
+            [currentAttributedString insertAttributedString:numberAttributedString atIndex:range.location];
+            
+            CGSize expectedStringSize = [NUMBER_STRING sizeWithAttributes:dictionary];
+            
+            // See if the previous paragraph has a number
+            NSString *previousParagraph = [self.attributedText.string substringWithRange:rangeOfPreviousParagraph];
+            BOOL doesPrefixWithNumber = [previousParagraph hasPrefix:NUMBER_STRING];
+            
+            // Look at the previous paragraph to see what the firstLineHeadIndent should be for the
+            // current number
+            // if the previous paragraph has a number, use that paragraph's indent
+            // if not, then use defaultIndentation size
+            if (!doesPrefixWithNumber)
+                paragraphStyle.firstLineHeadIndent = self.defaultIndentationSize;
+            else paragraphStyle.firstLineHeadIndent = prevParaStyle.firstLineHeadIndent;
+            
+            paragraphStyle.headIndent = expectedStringSize.width;
+            
+            rangeOffset = rangeOffset + NUMBER_STRING.length;
+            self.userInNumberList = YES;
+        }
+        [currentAttributedString addAttribute:NSParagraphStyleAttributeName value:paragraphStyle range:range];
+        self.attributedText = currentAttributedString;
+        //[self applyAttributes:paragraphStyle forKey:NSParagraphStyleAttributeName atRange:range];
+    }];
+    
+    // If paragraph is empty move cursor to front of number, so the user can start typing right away
+    NSRange rangeForSelection;
+    if (rangeOfParagraphsInSelectedText.count == 1 && rangeOfCurrentParagraph.length == 0)
+    {
+        rangeForSelection = NSMakeRange(rangeOfCurrentParagraph.location + NUMBER_STRING.length, 0);
+    }
+    else
+    {
+        if (initialSelectedRange.length == 0)
+        {
+            rangeForSelection = NSMakeRange(initialSelectedRange.location+rangeOffset, 0);
+        }
+        else
+        {
+            NSRange fullRange = [self fullRangeFromArrayOfParagraphRanges:rangeOfParagraphsInSelectedText];
+            rangeForSelection = NSMakeRange(fullRange.location, fullRange.length+rangeOffset);
+        }
+    }
+    //NSLog(@"[RTE] Range for end of number: %lu, %lu", (unsigned long)rangeForSelection.location, (unsigned long)rangeForSelection.length);
+    if (self.currSysVersion < 8.0)
+        self.scrollEnabled = YES;
+    [self setSelectedRange:rangeForSelection];
+        
 }
 
 - (void)richTextEditorToolbarDidSelectBulletListWithCaller:(id)caller
